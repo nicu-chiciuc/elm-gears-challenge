@@ -41,7 +41,7 @@ marginScene =
 
 
 test =
-    "test"
+    "test2"
 
 
 main : Program Never Model Msg
