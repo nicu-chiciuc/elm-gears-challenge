@@ -1,0 +1,5 @@
+{
+    "elm.makeCommand": "elm-make",
+    "elm.formatCommand": "elm-format",
+    "elm.formatOnSave": true
+}

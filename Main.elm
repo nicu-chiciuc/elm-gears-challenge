@@ -1,59 +1,166 @@
 module Main exposing (..)
 
-import Html exposing (Html, button, div, text)
-import Html.Events exposing (onClick)
-import Svg exposing (..)
+import Basics exposing (pi)
+import Html
+import Json.Decode as Json
+import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
+import Task
+import VirtualDom
+import Window
 
 
-main =
-    Html.beginnerProgram { model = model, view = view, update = update }
+type alias Position =
+    { x : Int, y : Int }
 
 
 type alias Model =
-    String
-
-
-model : Model
-model =
-    "red"
+    { size : Window.Size
+    , pos : Position
+    }
 
 
 type Msg
-    = ChangeColor
+    = Error
+    | WindowSize Window.Size
+    | MouseMove Position
 
 
-update : Msg -> Model -> Model
+marginScene =
+    20
+
+
+main : Program Never Model Msg
+main =
+    Html.program
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( { size = Window.Size 600 600
+      , pos = Position 0 0
+      }
+    , Task.perform WindowSize Window.size
+    )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        ChangeColor ->
-            if model == "green" then
-                "blue"
-            else
-                "green"
+    case msg |> Debug.log "msg" of
+        WindowSize { width, height } ->
+            ( { model | size = Window.Size (width - 2 * marginScene) (height - 100 - 2 * marginScene) }, Cmd.none )
+
+        MouseMove pos ->
+            ( { model | pos = pos }, Cmd.none )
+
+        _ ->
+            Debug.crash "update"
 
 
+view : Model -> Html.Html Msg
 view model =
-    svg
-        [ version "1.1"
-        , x "0"
-        , y "0"
-        , viewBox "0 0 323.141 322.95"
+    Html.div []
+        [ Html.div [] [ Html.text (toString model) ]
+        , scene model
         ]
-        [ polygon [ fill "#F0AD00", points "161.649,152.782 231.514,82.916 91.783,82.916" ] []
-        , polygon [ fill "#7FD13B", points "8.867,0 79.241,70.375 232.213,70.375 161.838,0" ] []
-        , rect
-            [ fill "#7FD13B"
-            , x "192.99"
-            , y "107.392"
-            , width "107.676"
-            , height "108.167"
-            , transform "matrix(0.7071 0.7071 -0.7071 0.7071 186.4727 -127.2386)"
+
+
+scene : Model -> Html.Html Msg
+scene model =
+    Svg.svg
+        [ width <| toString model.size.width
+        , height <| toString model.size.height
+        , style ("margin-left:" ++ px marginScene)
+        ]
+        [ background model
+        , grouping [ circle model, sprok model ]
+        ]
+
+
+px : a -> String
+px n =
+    toString n ++ "px"
+
+
+background : Model -> Svg.Svg Msg
+background model =
+    Svg.rect
+        [ width <| toString <| model.size.width - 20
+        , height <| toString <| model.size.height - 20
+        , fill "gray"
+        , VirtualDom.onWithOptions "mousemove" options (Json.map MouseMove offsetPosition)
+        ]
+        []
+
+
+{-| These options are an attempt to prevent double- and triple-clicking from
+propagating and selecting text outside the SVG scene. Doesn't work.
+-}
+options =
+    { preventDefault = True, stopPropagation = True }
+
+
+offsetPosition : Json.Decoder Position
+offsetPosition =
+    Json.map2 Position (Json.field "offsetX" Json.int) (Json.field "offsetY" Json.int)
+
+
+tracker : Model -> Svg Msg
+tracker model =
+    Svg.line
+        [ x1 "0"
+        , y1 "0"
+        , x2 (toString model.pos.x)
+        , y2 (toString model.pos.y)
+        , style "stroke:rgb(255,0,0);stroke-width:2"
+        ]
+        []
+
+
+circle : Model -> Svg Msg
+circle model =
+    Svg.circle
+        [ r "20"
+        , cx (toString model.pos.x)
+        , cy (toString model.pos.y)
+        ]
+        []
+
+
+grouping : List (Svg Msg) -> Svg Msg
+grouping msgs =
+    Svg.g
+        []
+        msgs
+
+
+sprok : Model -> Svg Msg
+sprok model =
+    Svg.circle
+        [ fill "none"
+        , r "30"
+        , cx (toString model.pos.x)
+        , cy (toString model.pos.y)
+        , strokeDasharray (toString (pi * 2))
+        , strokeDashoffset "1"
+        , stroke "#ff0"
+        , strokeWidth "4"
+        ]
+        [ Svg.animate
+            [ attributeName "stroke-dashoffset"
+            , from "0"
+            , to "6"
+            , dur "1s"
+            , repeatCount "indefinite"
             ]
             []
-        , polygon [ fill "#60B5CC", points "323.298,143.724 323.298,0 179.573,0" ] []
-        , polygon [ fill "#5A6378", points "152.781,161.649 0,8.868 0,314.432" ] []
-        , polygon [ fill "#F0AD00", points "255.522,246.655 323.298,314.432 323.298,178.879" ] []
-        , polygon [ fill "#60B5CC", points "161.649,170.517 8.869,323.298 314.43,323.298" ] []
-        , circle [ onClick ChangeColor, fill model, cx "30", cy "30", r "20" ] []
         ]
+
+
+subscriptions model =
+    Window.resizes WindowSize
