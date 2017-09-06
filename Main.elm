@@ -4,8 +4,8 @@ import Basics exposing (pi)
 import Html
 import Json.Decode as Json
 import Svg exposing (Svg)
-import Svg.Events exposing (onMouseDown, onMouseUp)
 import Svg.Attributes exposing (..)
+import Svg.Events exposing (onMouseDown, onMouseUp)
 import Task
 import VirtualDom
 import Window
@@ -38,6 +38,10 @@ type Msg
 
 marginScene =
     20
+
+
+test =
+    "test2"
 
 
 main : Program Never Model Msg
@@ -84,7 +88,7 @@ update msg model =
                             newCircleData =
                                 updateCircleData model.circleData model.pos ind
                         in
-                            ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
+                        ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
             else
                 ( model, Cmd.none )
 
@@ -112,7 +116,7 @@ updateCircleData list { x, y } ind =
             else
                 ( ox, oy, rad, i )
     in
-        List.indexedMap toggle list
+    List.indexedMap toggle list
 
 
 view : Model -> Html.Html Msg
