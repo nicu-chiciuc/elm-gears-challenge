@@ -16,7 +16,24 @@ type alias Position =
 
 
 type alias CircleData =
-    ( Float, Float, Float, Int )
+    { cx : Float
+    , cy : Float
+    , rad : Float
+    , index : Int
+    , segments : List Segment
+    , side : Float
+    , nowSegs : ( Int, Int )
+    , prevSegs : ( Int, Int )
+    , oneSeg : Int
+    }
+
+
+type alias Point =
+    ( Float, Float )
+
+
+type alias Segment =
+    ( Point, Point )
 
 
 type alias Model =
@@ -34,14 +51,11 @@ type Msg
     | MouseMove Position
     | MouseDown Int
     | MouseUp
+    | RecaculatePath
 
 
 marginScene =
     20
-
-
-test =
-    "test2"
 
 
 main : Program Never Model Msg
@@ -54,16 +68,21 @@ main =
         }
 
 
+getCircleData : Float -> Float -> Float -> Int -> CircleData
+getCircleData cx cy rad index =
+    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) 0
+
+
 init : ( Model, Cmd Msg )
 init =
     ( { size = Window.Size 600 600
       , pos = Position 0 0
       , mouseDown = False
       , circleData =
-            [ ( 0, 0, 16, 0 )
-            , ( -160, 0, 12, 1 )
-            , ( -112, 188, 24, 2 )
-            , ( -50, 188, 20, 3 )
+            [ getCircleData 0 0 16 0
+            , getCircleData -160 0 12 1
+            , getCircleData -112 188 24 2
+            , getCircleData -50 188 20 3
             ]
       , currentCircleInd = Nothing
       }
@@ -88,7 +107,7 @@ update msg model =
                             newCircleData =
                                 updateCircleData model.circleData model.pos ind
                         in
-                        ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
+                            ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
             else
                 ( model, Cmd.none )
 
@@ -110,13 +129,20 @@ update msg model =
 updateCircleData : List CircleData -> Position -> Int -> List CircleData
 updateCircleData list { x, y } ind =
     let
-        toggle index ( ox, oy, rad, i ) =
-            if i == ind then
-                ( toFloat x - dispx, toFloat y - dispy, rad, i )
+        toggle index c =
+            if c.index == ind then
+                getCircleData (toFloat x - dispx) (toFloat y - dispy) c.rad c.index
             else
-                ( ox, oy, rad, i )
+                getCircleData c.cx c.cy c.rad c.index
+
+        circlesWithUpdatePosition =
+            List.indexedMap toggle list
+
+        -- find a way to get the previous element and the next element
+        updatedCircles =
+            circlesWithUpdatePosition
     in
-    List.indexedMap toggle list
+        updatedCircles
 
 
 view : Model -> Html.Html Msg
@@ -146,7 +172,7 @@ scene model =
         , VirtualDom.onWithOptions "mousemove" options (Json.map MouseMove offsetPosition)
         ]
         [ background model
-        , grouping [ sproks model ]
+        , grouping [ sproks model, mainPath model ]
         ]
 
 
@@ -199,6 +225,120 @@ circle model =
         []
 
 
+mainPath : Model -> Svg msg
+mainPath model =
+    Svg.g [] []
+
+
+setupCircle : CircleData -> CircleData -> CircleData -> CircleData
+setupCircle cprev cnow cnext =
+    let
+        a =
+            cnow.cx
+
+        b =
+            cnow.cy
+
+        c =
+            cnext.cx
+
+        d =
+            cnext.cy
+
+        r0 =
+            cnow.rad
+
+        r1 =
+            cnext.rad
+
+        xp_out =
+            (c * r0 - a * r1) / (r0 - r1)
+
+        yp_out =
+            (d * r0 - b * r1) / (r0 - r1)
+
+        xp_in =
+            (c * r0 + a * r1) / (r0 + r1)
+
+        yp_in =
+            (d * r0 + b * r1) / (r0 + r1)
+
+        -- Outter tangent points
+        ( ( xt1out, yt1out ), ( xt2out, yt2out ) ) =
+            tangCi ( a, b ) r0 ( xp_out, yp_out )
+
+        ( ( xt3out, yt3out ), ( xt4out, yt4out ) ) =
+            tangCi ( c, d ) r1 ( xp_out, yp_out )
+
+        -- Inner tangent points
+        ( ( xt1in, yt1in ), ( xt2in, yt2in ) ) =
+            tangCi ( a, b ) r0 ( xp_in, yp_in )
+
+        ( ( xt3in, yt3in ), ( xt4in, yt4in ) ) =
+            tangCi ( c, d ) r1 ( xp_in, yp_in )
+
+        -- The 1,2 are the outter tangents
+        -- the 3,4 are the inner tangents
+        seg0 =
+            ( ( xt1out, yt1out ), ( xt3out, yt3out ) )
+
+        seg1 =
+            ( ( xt2out, yt2out ), ( xt4out, yt4out ) )
+
+        seg2 =
+            ( ( xt1in, yt1in ), ( xt3in, yt3in ) )
+
+        seg3 =
+            ( ( xt2in, yt2in ), ( xt4in, yt4in ) )
+
+        segments =
+            if r0 < r1 then
+                [ seg1, seg0, seg2, seg3 ]
+            else
+                [ seg0, seg1, seg2, seg3 ]
+
+        side =
+            sideOfLine ( cprev.cx, cprev.cy ) ( cnext.cx, cnext.cy ) ( cnow.cx, cnow.cy )
+    in
+        { cnow | segments = segments, side = side }
+
+
+tangCi : Point -> Float -> Point -> ( Point, Point )
+tangCi ( x, y ) r ( xp, yp ) =
+    let
+        xpx =
+            xp - x
+
+        ypy =
+            yp - y
+
+        xt sign =
+            (r ^ 2 * xpx + sign * r * ypy * sqrt (xpx ^ 2 + ypy ^ 2 - r ^ 2))
+                / (xpx ^ 2 + ypy ^ 2)
+                + x
+
+        yt sign =
+            (r ^ 2 * ypy + sign * r * xpx * sqrt (ypy ^ 2 + xpx ^ 2 - r ^ 2))
+                / (ypy ^ 2 + xpx ^ 2)
+                + y
+    in
+        ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
+
+
+sideOfLine : Point -> Point -> Point -> Float
+sideOfLine ( x1, y1 ) ( x2, y2 ) ( x, y ) =
+    (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1)
+
+
+equal : Float -> Float -> Bool
+equal a b =
+    let
+        eps =
+            0.0001
+    in
+        abs (a - b) < eps
+
+
 grouping : List (Svg Msg) -> Svg Msg
 grouping =
     Svg.g
@@ -215,17 +355,17 @@ sproks model =
 
 
 sprok : CircleData -> Svg Msg
-sprok ( x, y, rad, ind ) =
+sprok c =
     Svg.circle
         [ fill "blue"
-        , r (toString rad)
-        , cx (dispx + x |> toString)
-        , cy (dispy + y |> toString)
+        , r (toString c.rad)
+        , cx (dispx + c.cx |> toString)
+        , cy (dispy + c.cy |> toString)
         , strokeDasharray (toString (pi * 2))
         , strokeDashoffset "1"
         , stroke "#ff0"
         , strokeWidth "4"
-        , onMouseDown (MouseDown ind)
+        , onMouseDown (MouseDown c.index)
         , onMouseUp MouseUp
         ]
         [ Svg.animate
