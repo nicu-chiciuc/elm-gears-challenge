@@ -6,6 +6,7 @@ import Json.Decode as Json
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (onMouseDown, onMouseUp)
+import Svg.Path exposing (closed, emptySubpath, lineToMany, pathToString, startAt, subpath)
 import Task
 import VirtualDom
 import Window
@@ -228,9 +229,43 @@ circle model =
         []
 
 
+cross =
+    [ ( -60, -20 )
+    , ( -20, -20 )
+    , ( -20, -60 )
+    , ( 20, -60 )
+    , ( 20, -20 )
+    , ( 60, -20 )
+    , ( 60, 20 )
+    , ( 20, 20 )
+    , ( 20, 60 )
+    , ( -20, 60 )
+    , ( -20, 20 )
+    , ( -60, 20 )
+    ]
+
+
+polygon ps =
+    case ps of
+        [] ->
+            emptySubpath
+
+        x :: xs ->
+            subpath (startAt x) closed [ lineToMany xs ]
+
+
 mainPath : Model -> Svg msg
 mainPath model =
-    Svg.g [] []
+    Svg.g [ transform "translate(70,70)" ]
+        [ Svg.path
+            [ d (pathToString [ polygon cross ])
+            , stroke "#000"
+            , fill "none"
+            , strokeLinejoin "round"
+            , strokeWidth "10"
+            ]
+            []
+        ]
 
 
 setupCircle : ( CircleData, CircleData, CircleData ) -> CircleData
