@@ -152,8 +152,8 @@ updateCircleData list { x, y } ind =
 view : Model -> Html.Html Msg
 view model =
     Html.div []
-        [ Html.div [] [ Html.text (toString model) ]
-        , scene model
+        [ scene model
+        , Html.div [] [ Html.text (toString model) ]
         ]
 
 
@@ -392,6 +392,19 @@ sproks model =
         )
 
 
+lastElem : List a -> Maybe a
+lastElem list =
+    case list of
+        [] ->
+            Nothing
+
+        [ last ] ->
+            Just last
+
+        head :: rest ->
+            lastElem rest
+
+
 sprok : CircleData -> Svg Msg
 sprok c =
     Svg.circle
@@ -423,7 +436,7 @@ subscriptions model =
 
 tri : List a -> List ( a, a, a )
 tri list =
-    List.map3 tuple3 list (rollOnce list) (rollTwice list)
+    List.map3 tuple3 list (rollBack list) (rollTwice list)
 
 
 tuple3 : a -> b -> c -> ( a, b, c )
@@ -431,8 +444,8 @@ tuple3 a b c =
     ( a, b, c )
 
 
-rollOnce : List a -> List a
-rollOnce list =
+rollBack : List a -> List a
+rollBack list =
     case list of
         [] ->
             []
@@ -443,4 +456,4 @@ rollOnce list =
 
 rollTwice : List a -> List a
 rollTwice l =
-    rollOnce (rollOnce l)
+    rollBack (rollBack l)
