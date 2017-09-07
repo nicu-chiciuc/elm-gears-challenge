@@ -107,7 +107,7 @@ update msg model =
                             newCircleData =
                                 updateCircleData model.circleData model.pos ind
                         in
-                            ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
+                        ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
             else
                 ( model, Cmd.none )
 
@@ -138,11 +138,14 @@ updateCircleData list { x, y } ind =
         circlesWithUpdatePosition =
             List.indexedMap toggle list
 
+        triGroup =
+            tri circlesWithUpdatePosition
+
         -- find a way to get the previous element and the next element
         updatedCircles =
-            circlesWithUpdatePosition
+            List.map setupCircle triGroup
     in
-        updatedCircles
+    updatedCircles
 
 
 view : Model -> Html.Html Msg
@@ -230,8 +233,8 @@ mainPath model =
     Svg.g [] []
 
 
-setupCircle : CircleData -> CircleData -> CircleData -> CircleData
-setupCircle cprev cnow cnext =
+setupCircle : ( CircleData, CircleData, CircleData ) -> CircleData
+setupCircle ( cprev, cnow, cnext ) =
     let
         a =
             cnow.cx
@@ -300,7 +303,7 @@ setupCircle cprev cnow cnext =
         side =
             sideOfLine ( cprev.cx, cprev.cy ) ( cnext.cx, cnext.cy ) ( cnow.cx, cnow.cy )
     in
-        { cnow | segments = segments, side = side }
+    { cnow | segments = segments, side = side }
 
 
 tangCi : Point -> Float -> Point -> ( Point, Point )
@@ -322,7 +325,7 @@ tangCi ( x, y ) r ( xp, yp ) =
                 / (ypy ^ 2 + xpx ^ 2)
                 + y
     in
-        ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
+    ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
 
 
 sideOfLine : Point -> Point -> Point -> Float
@@ -336,7 +339,7 @@ equal a b =
         eps =
             0.0001
     in
-        abs (a - b) < eps
+    abs (a - b) < eps
 
 
 grouping : List (Svg Msg) -> Svg Msg
@@ -381,3 +384,28 @@ sprok c =
 
 subscriptions model =
     Window.resizes WindowSize
+
+
+tri : List a -> List ( a, a, a )
+tri list =
+    List.map3 tuple3 list (rollOnce list) (rollTwice list)
+
+
+tuple3 : a -> b -> c -> ( a, b, c )
+tuple3 a b c =
+    ( a, b, c )
+
+
+rollOnce : List a -> List a
+rollOnce list =
+    case list of
+        [] ->
+            []
+
+        x :: xs ->
+            xs ++ [ x ]
+
+
+rollTwice : List a -> List a
+rollTwice l =
+    rollOnce (rollOnce l)
