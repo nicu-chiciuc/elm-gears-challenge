@@ -146,7 +146,7 @@ updateCircleData list { x, y } ind =
         updatedCircles =
             List.map setupCircle triGroup
     in
-    updatedCircles
+    rollies updatedCircles
 
 
 view : Model -> Html.Html Msg
@@ -457,3 +457,61 @@ rollBack list =
 rollTwice : List a -> List a
 rollTwice l =
     rollBack (rollBack l)
+
+
+
+-------------------- Roll back
+
+
+rollies : List a -> List a
+rollies list =
+    let
+        lastOne =
+            last list
+    in
+    case lastOne of
+        Nothing ->
+            []
+
+        Just l ->
+            l :: butLast list
+
+
+normalTail : List a -> List a
+normalTail list =
+    let
+        maybeTail =
+            List.tail list
+    in
+    case maybeTail of
+        Nothing ->
+            []
+
+        Just list ->
+            list
+
+
+butLast : List a -> List a
+butLast list =
+    if list == [] then
+        []
+    else
+        reverse (normalTail (reverse list))
+
+
+last : List a -> Maybe a
+last list =
+    if list == [] then
+        Nothing
+    else
+        List.head (reverse list)
+
+
+reverse : List a -> List a
+reverse list =
+    case list of
+        [] ->
+            []
+
+        x :: xs ->
+            reverse xs ++ [ x ]
