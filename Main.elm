@@ -1,15 +1,27 @@
 module Main exposing (..)
 
 import Basics exposing (pi)
+import Set
 import Html
 import Json.Decode as Json
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (onMouseDown, onMouseUp)
-import Svg.Path exposing (closed, emptySubpath, lineToMany, pathToString, startAt, subpath)
+import Svg.Path
+    exposing
+        ( open
+        , closed
+        , emptySubpath
+        , lineToMany
+        , pathToString
+        , startAt
+        , subpath
+        , lineTo
+        )
 import Task
 import VirtualDom
 import Window
+import List.Extra exposing (..)
 
 
 type alias Position =
@@ -25,7 +37,7 @@ type alias CircleData =
     , side : Float
     , nowSegs : ( Int, Int )
     , prevSegs : ( Int, Int )
-    , oneSeg : Int
+    , seg : Segment
     }
 
 
@@ -71,7 +83,7 @@ main =
 
 getCircleData : Float -> Float -> Float -> Int -> CircleData
 getCircleData cx cy rad index =
-    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) 0
+    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) ( ( 0, 0 ), ( 0, 0 ) )
 
 
 init : ( Model, Cmd Msg )
@@ -108,7 +120,7 @@ update msg model =
                             newCircleData =
                                 updateCircleData model.circleData model.pos ind
                         in
-                        ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
+                            ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
             else
                 ( model, Cmd.none )
 
@@ -145,16 +157,26 @@ updateCircleData list { x, y } ind =
         -- find a way to get the previous element and the next element
         updatedCircles =
             List.map setupCircle triGroup
+
+        triGroup2 =
+            tri updatedCircles
+
+        updatedCircles2 =
+            List.map setupCircle2 triGroup2
     in
-    rollies updatedCircles
+        rollies updatedCircles2
 
 
 view : Model -> Html.Html Msg
 view model =
-    Html.div []
-        [ scene model
-        , Html.div [] [ Html.text (toString model) ]
-        ]
+    let
+        todisp =
+            List.map (\c -> c.seg) model.circleData
+    in
+        Html.div []
+            [ scene model
+            , Html.div [] [ Html.text (toString todisp) ]
+            ]
 
 
 dispx : Float
@@ -254,18 +276,53 @@ polygon ps =
             subpath (startAt x) closed [ lineToMany xs ]
 
 
+first : ( a, b ) -> a
+first ( n, m ) =
+    n
+
+
+second ( n, m ) =
+    m
+
+
 mainPath : Model -> Svg msg
 mainPath model =
-    Svg.g [ transform "translate(70,70)" ]
-        [ Svg.path
-            [ d (pathToString [ polygon cross ])
-            , stroke "#000"
-            , fill "none"
-            , strokeLinejoin "round"
-            , strokeWidth "10"
+    let
+        triCircles =
+            tri model.circleData
+
+        cl =
+            case List.head triCircles of
+                Nothing ->
+                    getCircleData 0 0 0 0
+
+                Just ( p, _, _ ) ->
+                    p
+
+        segs =
+            List.map (\c -> (second c.seg)) model.circleData
+
+        addedDisps =
+            List.map (\( a, b ) -> ( a + dispx, b + dispy )) segs
+
+        f =
+            subpath (startAt (first cl.seg))
+                Svg.Path.open
+                (List.map
+                    lineTo
+                    addedDisps
+                )
+    in
+        Svg.g []
+            [ Svg.path
+                [ d (pathToString [ f ])
+                , stroke "#000"
+                , fill "none"
+                , strokeLinejoin "round"
+                , strokeWidth "2"
+                ]
+                []
             ]
-            []
-        ]
 
 
 setupCircle : ( CircleData, CircleData, CircleData ) -> CircleData
@@ -337,8 +394,59 @@ setupCircle ( cprev, cnow, cnext ) =
 
         side =
             sideOfLine ( cprev.cx, cprev.cy ) ( cnext.cx, cnext.cy ) ( cnow.cx, cnow.cy )
+
+        nowSegs =
+            if side > 0 then
+                ( 0, 2 )
+            else
+                ( 1, 3 )
+
+        prevSegs =
+            if side > 0 then
+                ( 0, 3 )
+            else
+                ( 1, 2 )
     in
-    { cnow | segments = segments, side = side }
+        { cnow | segments = segments, side = side, nowSegs = nowSegs, prevSegs = prevSegs }
+
+
+setFromTuple : ( comparable, comparable ) -> Set.Set comparable
+setFromTuple ( n, m ) =
+    Set.fromList [ n, m ]
+
+
+setupCircle2 : ( CircleData, CircleData, CircleData ) -> CircleData
+setupCircle2 ( cprev, cnow, cnext ) =
+    let
+        set1 =
+            setFromTuple cnow.nowSegs
+
+        set2 =
+            setFromTuple cnext.prevSegs
+
+        setUnion =
+            Set.union set1 set2
+
+        first =
+            List.head (Set.toList setUnion)
+
+        oneSeg =
+            case first of
+                Nothing ->
+                    0
+
+                Just n ->
+                    n
+
+        seg =
+            case cnow.segments !! oneSeg of
+                Nothing ->
+                    ( ( 0, 0 ), ( 0, 0 ) )
+
+                Just s ->
+                    s
+    in
+        { cnow | seg = seg }
 
 
 tangCi : Point -> Float -> Point -> ( Point, Point )
@@ -360,7 +468,7 @@ tangCi ( x, y ) r ( xp, yp ) =
                 / (ypy ^ 2 + xpx ^ 2)
                 + y
     in
-    ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
+        ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
 
 
 sideOfLine : Point -> Point -> Point -> Float
@@ -374,7 +482,7 @@ equal a b =
         eps =
             0.0001
     in
-    abs (a - b) < eps
+        abs (a - b) < eps
 
 
 grouping : List (Svg Msg) -> Svg Msg
@@ -469,12 +577,12 @@ rollies list =
         lastOne =
             last list
     in
-    case lastOne of
-        Nothing ->
-            []
+        case lastOne of
+            Nothing ->
+                []
 
-        Just l ->
-            l :: butLast list
+            Just l ->
+                l :: butLast list
 
 
 normalTail : List a -> List a
@@ -483,12 +591,12 @@ normalTail list =
         maybeTail =
             List.tail list
     in
-    case maybeTail of
-        Nothing ->
-            []
+        case maybeTail of
+            Nothing ->
+                []
 
-        Just list ->
-            list
+            Just list ->
+                list
 
 
 butLast : List a -> List a
