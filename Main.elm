@@ -37,6 +37,7 @@ type alias CircleData =
     , side : Float
     , nowSegs : ( Int, Int )
     , prevSegs : ( Int, Int )
+    , oneSeg : Int
     , seg : Segment
     }
 
@@ -83,7 +84,7 @@ main =
 
 getCircleData : Float -> Float -> Float -> Int -> CircleData
 getCircleData cx cy rad index =
-    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) ( ( 0, 0 ), ( 0, 0 ) )
+    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) 0 ( ( 0, 0 ), ( 0, 0 ) )
 
 
 init : ( Model, Cmd Msg )
@@ -164,7 +165,7 @@ updateCircleData list { x, y } ind =
         updatedCircles2 =
             List.map setupCircle2 triGroup2
     in
-        rollies updatedCircles2
+        updatedCircles2
 
 
 view : Model -> Html.Html Msg
@@ -291,6 +292,9 @@ mainPath model =
         triCircles =
             tri model.circleData
 
+        prevs =
+            List.map (\( p, _, _ ) -> p) triCircles
+
         cl =
             case List.head triCircles of
                 Nothing ->
@@ -300,13 +304,16 @@ mainPath model =
                     p
 
         segs =
-            List.map (\c -> (second c.seg)) model.circleData
+            List.map (\c -> (second c.seg)) prevs
+
+        addDisp =
+            (\( a, b ) -> ( a + dispx, b + dispy ))
 
         addedDisps =
-            List.map (\( a, b ) -> ( a + dispx, b + dispy )) segs
+            List.map addDisp segs
 
         f =
-            subpath (startAt (first cl.seg))
+            subpath (startAt (addDisp (first cl.seg)))
                 Svg.Path.open
                 (List.map
                     lineTo
@@ -446,7 +453,7 @@ setupCircle2 ( cprev, cnow, cnext ) =
                 Just s ->
                     s
     in
-        { cnow | seg = seg }
+        { cnow | seg = seg, oneSeg = oneSeg }
 
 
 tangCi : Point -> Float -> Point -> ( Point, Point )
@@ -544,7 +551,7 @@ subscriptions model =
 
 tri : List a -> List ( a, a, a )
 tri list =
-    List.map3 tuple3 list (rollBack list) (rollTwice list)
+    List.map3 tuple3 (rollFront list) list (rollBack list)
 
 
 tuple3 : a -> b -> c -> ( a, b, c )
@@ -560,6 +567,11 @@ rollBack list =
 
         x :: xs ->
             xs ++ [ x ]
+
+
+rollFront : List a -> List a
+rollFront list =
+    reverse (rollBack (reverse list))
 
 
 rollTwice : List a -> List a
