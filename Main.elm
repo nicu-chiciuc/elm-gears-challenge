@@ -7,21 +7,12 @@ import Json.Decode as Json
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (onMouseDown, onMouseUp)
-import Svg.Path
-    exposing
-        ( open
-        , closed
-        , emptySubpath
-        , lineToMany
-        , pathToString
-        , startAt
-        , subpath
-        , lineTo
-        )
+import Svg.Path exposing (..)
 import Task
 import VirtualDom
 import Window
 import List.Extra exposing (..)
+import Debug exposing (log)
 
 
 type alias Position =
@@ -39,6 +30,9 @@ type alias CircleData =
     , prevSegs : ( Int, Int )
     , oneSeg : Int
     , seg : Segment
+    , aside : Float
+    , arcFlag : ArcFlag
+    , direction : Direction
     }
 
 
@@ -84,7 +78,7 @@ main =
 
 getCircleData : Float -> Float -> Float -> Int -> CircleData
 getCircleData cx cy rad index =
-    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) 0 ( ( 0, 0 ), ( 0, 0 ) )
+    CircleData cx cy rad index [] 0.0 ( 0, 0 ) ( 0, 0 ) 0 ( ( 0, 0 ), ( 0, 0 ) ) 0 largestArc clockwise
 
 
 init : ( Model, Cmd Msg )
@@ -106,7 +100,7 @@ init =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg |> Debug.log "msg" of
+    case msg of
         WindowSize { width, height } ->
             ( { model | size = Window.Size (width - 2 * marginScene) (height - 100 - 2 * marginScene) }, Cmd.none )
 
@@ -164,15 +158,21 @@ updateCircleData list { x, y } ind =
 
         updatedCircles2 =
             List.map setupCircle2 triGroup2
+
+        triGroup3 =
+            tri updatedCircles2
+
+        updatedCircles3 =
+            List.map setupCircle3 triGroup3
     in
-        updatedCircles2
+        updatedCircles3
 
 
 view : Model -> Html.Html Msg
 view model =
     let
         todisp =
-            List.map (\c -> c.seg) model.circleData
+            List.map (\c -> (c.oneSeg)) model.circleData
     in
         Html.div []
             [ scene model
@@ -306,6 +306,9 @@ mainPath model =
         segs =
             List.map (\c -> (second c.seg)) prevs
 
+        arcs =
+            List.map (\c -> arcTo ( c.rad, c.rad ) 0 ( c.arcFlag, c.direction ) (first c.seg)) model.circleData
+
         addDisp =
             (\( a, b ) -> ( a + dispx, b + dispy ))
 
@@ -323,10 +326,10 @@ mainPath model =
         Svg.g []
             [ Svg.path
                 [ d (pathToString [ f ])
-                , stroke "#000"
+                , stroke "red"
                 , fill "none"
                 , strokeLinejoin "round"
-                , strokeWidth "2"
+                , strokeWidth "4"
                 ]
                 []
             ]
@@ -432,7 +435,7 @@ setupCircle2 ( cprev, cnow, cnext ) =
             setFromTuple cnext.prevSegs
 
         setUnion =
-            Set.union set1 set2
+            Set.intersect set1 set2 |> Debug.log "union"
 
         first =
             List.head (Set.toList setUnion)
@@ -440,7 +443,7 @@ setupCircle2 ( cprev, cnow, cnext ) =
         oneSeg =
             case first of
                 Nothing ->
-                    0
+                    -1
 
                 Just n ->
                     n
@@ -454,6 +457,35 @@ setupCircle2 ( cprev, cnow, cnext ) =
                     s
     in
         { cnow | seg = seg, oneSeg = oneSeg }
+
+
+setupCircle3 : ( CircleData, CircleData, CircleData ) -> CircleData
+setupCircle3 ( cprev, cnow, cnext ) =
+    let
+        aside =
+            arcSide cprev.seg cnow.seg
+
+        direction =
+            if cnow.side > 0 then
+                clockwise
+            else
+                antiClockwise
+
+        arcFlag =
+            if direction == clockwise then
+                (if aside < 0 then
+                    largestArc
+                 else
+                    smallestArc
+                )
+            else
+                (if aside > 0 then
+                    largestArc
+                 else
+                    smallestArc
+                )
+    in
+        { cnow | aside = aside, direction = direction, arcFlag = arcFlag }
 
 
 tangCi : Point -> Float -> Point -> ( Point, Point )
@@ -476,6 +508,18 @@ tangCi ( x, y ) r ( xp, yp ) =
                 + y
     in
         ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
+
+
+arcSide : Segment -> Segment -> Float
+arcSide ( ( x0, y0 ), ( x1, y1 ) ) ( ( x2, y2 ), ( x3, y3 ) ) =
+    let
+        difx =
+            x3 - x0
+
+        dify =
+            y3 - y0
+    in
+        sideOfLine ( x0, y0 ) ( x1, y1 ) ( x2 - difx, y2 - dify )
 
 
 sideOfLine : Point -> Point -> Point -> Float
