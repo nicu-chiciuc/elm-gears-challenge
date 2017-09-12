@@ -1,9 +1,11 @@
 module Main exposing (..)
 
 import Basics exposing (pi)
-import Set
+import Debug exposing (log)
 import Html
 import Json.Decode as Json
+import List.Extra exposing (..)
+import Set
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events exposing (onMouseDown, onMouseUp)
@@ -11,8 +13,6 @@ import Svg.Path exposing (..)
 import Task
 import VirtualDom
 import Window
-import List.Extra exposing (..)
-import Debug exposing (log)
 
 
 type alias Position =
@@ -91,6 +91,8 @@ init =
             , getCircleData -160 0 12 1
             , getCircleData -112 188 24 2
             , getCircleData -50 188 20 3
+            , getCircleData 100 100 31 4
+            , getCircleData 200 200 15 5
             ]
       , currentCircleInd = Nothing
       }
@@ -115,7 +117,7 @@ update msg model =
                             newCircleData =
                                 updateCircleData model.circleData model.pos ind
                         in
-                            ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
+                        ( { model | pos = pos, circleData = newCircleData }, Cmd.none )
             else
                 ( model, Cmd.none )
 
@@ -165,19 +167,19 @@ updateCircleData list { x, y } ind =
         updatedCircles3 =
             List.map setupCircle3 triGroup3
     in
-        updatedCircles3
+    updatedCircles3
 
 
 view : Model -> Html.Html Msg
 view model =
     let
         todisp =
-            List.map (\c -> (c.oneSeg)) model.circleData
+            List.map (\c -> c.oneSeg) model.circleData
     in
-        Html.div []
-            [ scene model
-            , Html.div [] [ Html.text (toString todisp) ]
-            ]
+    Html.div []
+        [ scene model
+        , Html.div [] [ Html.text (toString todisp) ]
+        ]
 
 
 dispx : Float
@@ -304,35 +306,32 @@ mainPath model =
                     p
 
         segs =
-            List.map (\c -> (second c.seg)) prevs
+            List.map (\c -> lineTo (addDisp (second c.seg))) prevs |> Debug.log "segs"
 
         arcs =
-            List.map (\c -> arcTo ( c.rad, c.rad ) 0 ( c.arcFlag, c.direction ) (first c.seg)) model.circleData
+            List.map (\c -> arcTo ( c.rad, c.rad ) 0 ( c.arcFlag, c.direction ) (addDisp (first c.seg))) model.circleData |> Debug.log "arcs"
 
         addDisp =
-            (\( a, b ) -> ( a + dispx, b + dispy ))
-
-        addedDisps =
-            List.map addDisp segs
+            \( a, b ) -> ( a + dispx, b + dispy )
 
         f =
             subpath (startAt (addDisp (first cl.seg)))
                 Svg.Path.open
-                (List.map
-                    lineTo
-                    addedDisps
+                (List.Extra.interweave
+                    segs
+                    arcs
                 )
     in
-        Svg.g []
-            [ Svg.path
-                [ d (pathToString [ f ])
-                , stroke "red"
-                , fill "none"
-                , strokeLinejoin "round"
-                , strokeWidth "4"
-                ]
-                []
+    Svg.g []
+        [ Svg.path
+            [ d (pathToString [ f ])
+            , stroke "red"
+            , fill "none"
+            , strokeLinejoin "round"
+            , strokeWidth "4"
             ]
+            []
+        ]
 
 
 setupCircle : ( CircleData, CircleData, CircleData ) -> CircleData
@@ -417,7 +416,7 @@ setupCircle ( cprev, cnow, cnext ) =
             else
                 ( 1, 2 )
     in
-        { cnow | segments = segments, side = side, nowSegs = nowSegs, prevSegs = prevSegs }
+    { cnow | segments = segments, side = side, nowSegs = nowSegs, prevSegs = prevSegs }
 
 
 setFromTuple : ( comparable, comparable ) -> Set.Set comparable
@@ -456,7 +455,7 @@ setupCircle2 ( cprev, cnow, cnext ) =
                 Just s ->
                     s
     in
-        { cnow | seg = seg, oneSeg = oneSeg }
+    { cnow | seg = seg, oneSeg = oneSeg }
 
 
 setupCircle3 : ( CircleData, CircleData, CircleData ) -> CircleData
@@ -473,19 +472,16 @@ setupCircle3 ( cprev, cnow, cnext ) =
 
         arcFlag =
             if direction == clockwise then
-                (if aside < 0 then
+                if aside < 0 then
                     largestArc
-                 else
+                else
                     smallestArc
-                )
+            else if aside > 0 then
+                largestArc
             else
-                (if aside > 0 then
-                    largestArc
-                 else
-                    smallestArc
-                )
+                smallestArc
     in
-        { cnow | aside = aside, direction = direction, arcFlag = arcFlag }
+    { cnow | aside = aside, direction = direction, arcFlag = arcFlag }
 
 
 tangCi : Point -> Float -> Point -> ( Point, Point )
@@ -507,7 +503,7 @@ tangCi ( x, y ) r ( xp, yp ) =
                 / (ypy ^ 2 + xpx ^ 2)
                 + y
     in
-        ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
+    ( ( xt 1, yt -1 ), ( xt -1, yt 1 ) )
 
 
 arcSide : Segment -> Segment -> Float
@@ -519,7 +515,7 @@ arcSide ( ( x0, y0 ), ( x1, y1 ) ) ( ( x2, y2 ), ( x3, y3 ) ) =
         dify =
             y3 - y0
     in
-        sideOfLine ( x0, y0 ) ( x1, y1 ) ( x2 - difx, y2 - dify )
+    sideOfLine ( x0, y0 ) ( x1, y1 ) ( x2 - difx, y2 - dify )
 
 
 sideOfLine : Point -> Point -> Point -> Float
@@ -533,7 +529,7 @@ equal a b =
         eps =
             0.0001
     in
-        abs (a - b) < eps
+    abs (a - b) < eps
 
 
 grouping : List (Svg Msg) -> Svg Msg
@@ -633,12 +629,12 @@ rollies list =
         lastOne =
             last list
     in
-        case lastOne of
-            Nothing ->
-                []
+    case lastOne of
+        Nothing ->
+            []
 
-            Just l ->
-                l :: butLast list
+        Just l ->
+            l :: butLast list
 
 
 normalTail : List a -> List a
@@ -647,12 +643,12 @@ normalTail list =
         maybeTail =
             List.tail list
     in
-        case maybeTail of
-            Nothing ->
-                []
+    case maybeTail of
+        Nothing ->
+            []
 
-            Just list ->
-                list
+        Just list ->
+            list
 
 
 butLast : List a -> List a
