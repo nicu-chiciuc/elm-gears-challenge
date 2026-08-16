@@ -1,0 +1,16 @@
+{
+  "name": "elm-gears-challenge",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"require('node:fs').mkdirSync('dist',{recursive:true})\" && elm-package install --yes && elm-make Main.elm --output=dist/index.html",
+    "deploy": "wrangler deploy",
+    "deploy:preview": "wrangler versions upload"
+  },
+  "devDependencies": {
+    "elm": "0.18.0-exp5",
+    "wrangler": "4.123.0"
+  },
+  "overrides": {
+    "graceful-fs": "4.2.11"
+  }
+}
