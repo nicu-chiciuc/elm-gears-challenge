@@ -3,6 +3,7 @@ module Main exposing (..)
 import Basics exposing (pi)
 import Debug exposing (log)
 import Html
+import Html.Attributes as HtmlAttributes
 import Json.Decode as Json
 import List.Extra exposing (..)
 import Set
@@ -177,8 +178,32 @@ view model =
             List.map (\c -> c.oneSeg) model.circleData
     in
     Html.div []
-        [ scene model
+        [ attributionStyle
+        , scene model
         , Html.div [] [ Html.text (toString todisp) ]
+        , attribution
+        ]
+
+
+attributionStyle : Html.Html msg
+attributionStyle =
+    Html.node "style"
+        []
+        [ Html.text ".samebase-attribution{align-items:center;color:#394447;display:inline-flex;font:12px system-ui,sans-serif;gap:4px;min-height:44px;padding:0 10px;text-decoration:none}.samebase-attribution img{height:14px;width:14px}.samebase-attribution:focus{outline:2px solid currentColor;outline-offset:2px}" ]
+
+
+attribution : Html.Html msg
+attribution =
+    Html.a
+        [ HtmlAttributes.class "samebase-attribution"
+        , HtmlAttributes.href "https://samebase.com"
+        , HtmlAttributes.target "_blank"
+        , HtmlAttributes.rel "noopener noreferrer"
+        , HtmlAttributes.attribute "aria-label" "Managed with Samebase"
+        ]
+        [ Html.span [] [ Html.text "Managed with" ]
+        , Html.img [ HtmlAttributes.src "samebase-logo.svg", HtmlAttributes.alt "" ] []
+        , Html.span [] [ Html.text "Samebase" ]
         ]
 
 
