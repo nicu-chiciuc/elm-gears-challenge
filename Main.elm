@@ -189,7 +189,7 @@ attributionStyle : Html.Html msg
 attributionStyle =
     Html.node "style"
         []
-        [ Html.text ".samebase-footer{display:flex;justify-content:flex-end;padding:0 20px}.samebase-attribution{align-items:center;color:#667085;display:inline-flex;font:12px system-ui,sans-serif;min-height:44px;text-decoration:none}.samebase-attribution-text{border-bottom:1px solid transparent;white-space:nowrap}.samebase-attribution:hover .samebase-attribution-text{border-bottom-color:currentColor}.samebase-attribution svg{display:inline-block;height:.75em;margin-right:.15em;vertical-align:baseline;width:.75em}.samebase-attribution:focus{outline:2px solid currentColor;outline-offset:2px}" ]
+        [ Html.text ".samebase-footer{display:flex;justify-content:flex-end;padding:0 20px}.samebase-attribution{align-items:center;color:#737373;display:inline-flex;font:12px system-ui,sans-serif;min-height:44px;text-decoration:none}.samebase-attribution-text{border-bottom:1px solid transparent;white-space:nowrap}.samebase-attribution:hover .samebase-attribution-text{border-bottom-color:currentColor}.samebase-attribution svg{display:inline-block;height:.75em;margin-right:.15em;vertical-align:baseline;width:.75em}.samebase-attribution:focus{outline:2px solid currentColor;outline-offset:2px}" ]
 
 
 attribution : Html.Html msg
