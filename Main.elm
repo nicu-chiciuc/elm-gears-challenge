@@ -181,7 +181,7 @@ view model =
         [ attributionStyle
         , scene model
         , Html.div [] [ Html.text (toString todisp) ]
-        , attribution
+        , Html.div [ HtmlAttributes.class "samebase-footer" ] [ attribution ]
         ]
 
 
@@ -189,7 +189,7 @@ attributionStyle : Html.Html msg
 attributionStyle =
     Html.node "style"
         []
-        [ Html.text ".samebase-attribution{align-items:center;color:#394447;display:inline-flex;font:12px system-ui,sans-serif;gap:4px;min-height:44px;padding:0 10px;text-decoration:none}.samebase-attribution img{height:14px;width:14px}.samebase-attribution:focus{outline:2px solid currentColor;outline-offset:2px}" ]
+        [ Html.text ".samebase-footer{display:flex;justify-content:flex-end;padding:0 20px}.samebase-attribution{align-items:center;color:#667085;display:inline-flex;font:12px system-ui,sans-serif;min-height:44px;text-decoration:none}.samebase-attribution-text{border-bottom:1px solid transparent;white-space:nowrap}.samebase-attribution:hover .samebase-attribution-text{border-bottom-color:currentColor}.samebase-attribution svg{display:inline-block;height:.75em;margin-right:.15em;vertical-align:baseline;width:.75em}.samebase-attribution:focus{outline:2px solid currentColor;outline-offset:2px}" ]
 
 
 attribution : Html.Html msg
@@ -199,11 +199,29 @@ attribution =
         , HtmlAttributes.href "https://samebase.com"
         , HtmlAttributes.target "_blank"
         , HtmlAttributes.rel "noopener noreferrer"
-        , HtmlAttributes.attribute "aria-label" "Managed with Samebase"
         ]
-        [ Html.span [] [ Html.text "Managed with" ]
-        , Html.img [ HtmlAttributes.src "samebase-logo.svg", HtmlAttributes.alt "" ] []
-        , Html.span [] [ Html.text "Samebase" ]
+        [ Html.span
+            [ HtmlAttributes.class "samebase-attribution-text" ]
+            [ Html.text "Managed with "
+            , Html.b
+                []
+                [ Svg.svg
+                    [ viewBox "0 0 60 60"
+                    , width "0.75em"
+                    , height "0.75em"
+                    , shapeRendering "crispEdges"
+                    , HtmlAttributes.attribute "aria-hidden" "true"
+                    ]
+                    [ Svg.path
+                        [ d "M0 0h60v60H0z M20 20h20v20H20z"
+                        , fill "currentColor"
+                        , fillRule "evenodd"
+                        ]
+                        []
+                    ]
+                , Html.text "Samebase"
+                ]
+            ]
         ]
 
 

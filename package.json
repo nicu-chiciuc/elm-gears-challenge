@@ -2,7 +2,7 @@
   "name": "elm-gears-challenge",
   "private": true,
   "scripts": {
-    "build": "node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.copyFileSync('samebase-logo.svg','dist/samebase-logo.svg')\" && elm-package install --yes && elm-make Main.elm --output=dist/index.html",
+    "build": "node -e \"require('node:fs').mkdirSync('dist',{recursive:true})\" && elm-package install --yes && elm-make Main.elm --output=dist/index.html",
     "deploy": "wrangler deploy",
     "deploy:preview": "wrangler versions upload"
   },
