@@ -15,3 +15,7 @@ For an existing production Worker, run the workflow on `main` with `adopt=true`
 and `plan_only=true` first. Review the plan, then run with `adopt=true` and
 `plan_only=false`. Later pushes deploy without adoption. The production plan
 rejects resource creation, deletion, replacement, or orphaning.
+
+The build keeps Elm `0.18.0-exp5` and the existing `graceful-fs` override.
+GitHub Actions uses Linux x64 and Node 24 for both `npm run build` and Alchemy.
+No migration of the Elm application is required.
